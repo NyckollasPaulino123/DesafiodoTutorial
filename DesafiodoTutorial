@@ -1,0 +1,37 @@
+from rest_framework import serializers
+from .models import Book
+
+class BookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Book
+        fields = ['id', 'title', 'author', 'published_date']
+    
+    # Validação no nível do campo
+    def validate_title(self, value):
+        if Book.objects.filter(title=value).exists():
+            raise serializers.ValidationError("Este título já existe. Escolha outro.")
+        return value
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Book
+from .serializers import BookSerializer
+
+class BookByAuthorView(APIView):
+    def get(self, request):
+        author = request.query_params.get('author')  # Captura o parâmetro 'author' da URL
+        if author:
+            books = Book.objects.filter(author__icontains=author)  # Busca por nome parcial do autor
+            serializer = BookSerializer(books, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"error": "O parâmetro 'author' é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+/api/books/?author=J.R.R.Tolkien
+
+from django.urls import path
+from .views import BookByAuthorView
+
+urlpatterns = [
+    path('api/books/', BookByAuthorView.as_view(), name='book-by-author'),
+]
